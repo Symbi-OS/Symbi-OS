@@ -4,3 +4,6 @@
 [submodule "Apps"]
 	path = Apps
 	url = https://github.com/Symbi-OS/Apps.git
+[submodule "busybox"]
+	path = busybox
+	url = git@github.com:mirror/busybox.git
