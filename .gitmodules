@@ -1,9 +1,6 @@
 [submodule "linux"]
 	path = linux
 	url = https://github.com/Symbi-OS/linux.git
-[submodule "busybox"]
-	path = busybox
-	url = git@github.com:mirror/busybox.git
 [submodule "Run"]
 	path = Run
 	url = git@github.com:Symbi-OS/Run.git
