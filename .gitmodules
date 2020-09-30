@@ -7,3 +7,6 @@
 [submodule "Run"]
 	path = Run
 	url = git@github.com:Symbi-OS/Run.git
+[submodule "Apps"]
+	path = Apps
+	url = git@github.com:Symbi-OS/Apps.git
