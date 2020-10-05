@@ -13,15 +13,19 @@
 # busybox: misc/busybox_build
 # 	cd $< && make -j48 && make install
 
+build_all: linux_kernel busybox_exe initrd
+	make -C Apps
+	make -C Run run_vm
+
 MISC_DIR=./misc
 INITRD_DIR=$(MISC_DIR)/initramfs/x86-busybox
 # Linux expects initrd to define the FS contents at boot time.
 initrd:
 	mkdir -pv $(INITRD_DIR)
-#	cd $(TOP)/initramfs/x86-busybox &&
 	bash -c 'mkdir -pv $(MISC_DIR)/initramfs/x86-busybox/{bin,dev,sbin,etc,proc,sys/kernel/debug,usr/{bin,sbin},lib,lib64,mnt/root,root}'
 	bash -c 'cp -av $(MISC_DIR)/busybox_build/_install/* $(MISC_DIR)/initramfs/x86-busybox'
-	bash -c 'sudo cp -av /dev/{null,console,tty,sda1} $(MISC_DIR)/initramfs/x86-busybox/dev/'
+# Don't think we need these?
+# bash -c 'sudo cp -av /dev/{null,console,tty,sda1} $(MISC_DIR)/initramfs/x86-busybox/dev/'
 
 initrd_clean:
 	rm -rf $(MISC_DIR)/initramfs
@@ -47,8 +51,6 @@ busybox_exe:
 busybox_clean:
 	rm -rf $(BB_BUILD_DIR)
 
-build_all: linux_kernel busybox_exe initrd
-	make -C Run run_vm
 
 clean: linux_kernel_clean busybox_clean initrd_clean
 	make -C Run clean
