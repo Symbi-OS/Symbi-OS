@@ -34,7 +34,7 @@ print:
 	bash -c 'echo {bin,dev,sbin,etc,proc,sys/kernel/debug,usr/{bin,sbin},lib,lib64,mnt/root,root}'
 
 linux_kernel:
-	cd linux && make defconfig
+	cp misc/linux_config/config_debug linux/.config
 	cd linux && make -j$(nproc)
 
 linux_kernel_clean:
