@@ -4,7 +4,8 @@ This is a top level directory to organize the repos necessary to build this proj
 
 # Prereqs:
 
-flex bison
+Linux:
+flex bison libssl-dev 
 
 # Building
 top level directory
