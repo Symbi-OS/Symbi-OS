@@ -12,6 +12,10 @@ top level directory
 
 make build_all
 
-make in apps
+cd Apps/examples/
+
+make steal_syscalls
+
+cd ../../Run/
 
 make run_vm
