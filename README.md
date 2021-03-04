@@ -5,7 +5,7 @@ This is a top level directory to organize the repos necessary to build this proj
 # Prereqs:
 
 Linux:
-flex bison libssl-dev 
+flex bison libssl-dev qemu
 
 # Building
 top level directory
