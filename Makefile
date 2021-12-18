@@ -1,57 +1,34 @@
-# https://www.zachpfeffer.com/single-post/Build-the-Linux-kernel-and-Busybox-and-run-on-QEMU
+# Download kern and config.
+all: get_all
+get_all: get_sym_linux get_linux_configs
 
-# in a VM:
-# userspace (shell, basic commands [ls, top, mkdir]) <- busybox is providing this.
-# =======
-# kernel
+get_linux_configs:
+	git clone git@github.com:Symbi-OS/linuxConfigs.git
 
-# when we boot QEMU (our vm) we can pass 2 files:
-# 1) The kernel binary
-# 2) initrd a.k.a. initramfs: compressed cpio archive which defines the filesystem contents for the userspace
+get_sym_linux:
+	git clone --depth 5 -b clean-sym-5.14 git@github.com:Symbi-OS/linux.git
 
-# Provides basic userspace programs as a single executable.
-# busybox: misc/busybox_build
-# 	cd $< && make -j48 && make install
-
-build_all: linux_kernel busybox_exe initrd
+build_all: linux_kernel
 	make -C Apps
-	make -C Run run_vm
 
-MISC_DIR=./misc
-INITRD_DIR=$(MISC_DIR)/initramfs/x86-busybox
-# Linux expects initrd to define the FS contents at boot time.
-initrd:
-	mkdir -pv $(INITRD_DIR)
-	bash -c 'mkdir -pv $(MISC_DIR)/initramfs/x86-busybox/{bin,dev,sbin,etc,proc,sys/kernel/debug,usr/{bin,sbin},lib,lib64,mnt/root,root}'
-	bash -c 'cp -av $(MISC_DIR)/busybox_build/_install/* $(MISC_DIR)/initramfs/x86-busybox'
-# Don't think we need these?
-# bash -c 'sudo cp -av /dev/{null,console,tty,sda1} $(MISC_DIR)/initramfs/x86-busybox/dev/'
+build_linux_kernel: linux linuxConfigs
+	cp ./linuxConfigs/5.14/defconfig_debug_virtio ./linux/.config
+	cd linux && make oldconfig
+	cd linux && make -j$(nproc) bzImage
+	cd linux && make -j$(nproc) modules
 
-initrd_clean:
-	rm -rf $(MISC_DIR)/initramfs
+# Creates initrd modules dir and copies kern into /boot.
+linux_install: ./linux/arch/x86/boot/bzImage
+	cd linux && sudo make modules_install
+	cd linux && sudo make install
 
-print:
-	bash -c 'echo {bin,dev,sbin,etc,proc,sys/kernel/debug,usr/{bin,sbin},lib,lib64,mnt/root,root}'
+# Linux install already created the entry, we just edit it.
+config_grub_sym: /boot/vmlinuz-5.14.0-symbiote+
+	sudo grubby --remove-args="" --args="mitigations=off nosmep nosmap isolcpus=0" --update-kernel /boot/vmlinuz-5.14.0-symbiote+
 
-linux_kernel:
-	cp misc/linux_config/config_debug linux/.config
-	cd linux && make -j$(nproc)
+#now just reboot via console and pick the symbiote entry
 
 linux_kernel_clean:
 	cd linux && make clean
 
-BB_BUILD_DIR=$(MISC_DIR)/busybox_build
-busybox_exe:
-	mkdir $(BB_BUILD_DIR)
-	cd busybox && make O=../$(BB_BUILD_DIR) defconfig
-	cp $(MISC_DIR)/busybox_config/config $(BB_BUILD_DIR)/.config
-	cd $(BB_BUILD_DIR) && make -j$(nproc)
-	cd $(BB_BUILD_DIR) && make install
-
-busybox_clean:
-	rm -rf $(BB_BUILD_DIR)
-
-
-clean: linux_kernel_clean busybox_clean initrd_clean
-	make -C Run clean
-
+clean: linux_kernel_clean
