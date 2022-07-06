@@ -19,3 +19,7 @@
 [submodule "symVirtNetPollBinHack"]
 	path = symVirtNetPollBinHack
 	url = git@github.com:Symbi-OS/symVirtNetPollBinHack.git
+[submodule "Apps"]
+	path = Apps
+	url = git@github.com:Symbi-OS/Apps.git
+	branch = master
