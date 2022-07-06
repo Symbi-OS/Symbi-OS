@@ -1,6 +1,3 @@
-[submodule "Apps"]
-	path = Apps
-	url = git@github.com:Symbi-OS/Apps.git
 [submodule "linux"]
 	path = linux
 	url = git@github.com:Symbi-OS/linux.git
