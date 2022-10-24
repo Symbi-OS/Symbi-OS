@@ -22,11 +22,11 @@ get_linux_configs:
 	git clone git@github.com:Symbi-OS/linuxConfigs.git
 
 get_sym_linux:
-	git clone --depth 5 -b clean-sym-5.14 git@github.com:Symbi-OS/linux.git
+	git clone --depth 5 -b 5.14-config git@github.com:Symbi-OS/linux.git
 
 
 build_linux_kernel: linux linuxConfigs
-	cp ./linuxConfigs/5.14/defconfig_debug_virtio ./linux/.config
+	cp ./linuxConfigs/5.14/golden_config_bnx2_pnp ./linux/.config
 	cd linux && make oldconfig
 	cd linux && make -j$(nproc) bzImage
 	cd linux && make -j$(nproc) modules
