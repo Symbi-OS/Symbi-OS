@@ -46,3 +46,10 @@ linux_kernel_clean:
 	cd linux && make clean
 
 clean: linux_kernel_clean
+
+expt:
+	make -C Symlib/ clean
+	make -C Symlib/
+	make -C Tools/ clean
+	make -C Tools/
+	make -C LinuxPrototypes/write_loop all
