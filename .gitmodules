@@ -27,3 +27,12 @@
 [submodule "LinuxPrototypes"]
 	path = LinuxPrototypes
 	url = git@github.com:Symbi-OS/LinuxPrototypes.git
+[submodule "artifacts"]
+	path = artifacts
+	url = git@github.com:Symbi-OS/artifacts.git
+[submodule "control"]
+	path = control
+	url = git@github.com:Symbi-OS/control.git
+[submodule "saltstack"]
+	path = saltstack
+	url = git@github.com:Symbi-OS/saltstack.git
