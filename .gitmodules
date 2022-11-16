@@ -6,9 +6,6 @@
 	path = linuxConfigs
 	url = git@github.com:Symbi-OS/linuxConfigs.git
 	branch = main
-[submodule "min-initrd"]
-	path = min-initrd
-	url = git@github.com:Symbi-OS/min-initrd.git
 [submodule "networking"]
 	path = networking
 	url = git@github.com:Symbi-OS/networking.git
@@ -27,9 +24,6 @@
 [submodule "Symlib"]
 	path = Symlib
 	url = git@github.com:Symbi-OS/Symlib.git
-[submodule "kallsymlib"]
-	path = kallsymlib
-	url = git@github.com:Symbi-OS/kallsymlib.git
 [submodule "LinuxPrototypes"]
 	path = LinuxPrototypes
 	url = git@github.com:Symbi-OS/LinuxPrototypes.git
