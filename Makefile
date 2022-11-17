@@ -1,3 +1,4 @@
+SHELL := /bin/bash
 # This is disconnected and fubar, but serves as rough documentation
 # about how to get a symbiote kernel ready to run.
 
@@ -47,9 +48,54 @@ linux_kernel_clean:
 
 clean: linux_kernel_clean
 
-expt:
+build_expt:
 	make -C Symlib/ clean
 	make -C Symlib/
 	make -C Tools/ clean
 	make -C Tools/
+	make -C Tools/ mitigate
+
+run_taskset_long:
+	taskset -c 0 bash -c 'make -C LinuxPrototypes/write_loop run_elev_sc_wr_only_long'
+
+run_taskset_elev_long:
+	taskset -c 0 bash -c 'make -C LinuxPrototypes/write_loop run_elev_long'
+
+run_taskset: build_expt
+	taskset -c 0 bash -c 'make -C LinuxPrototypes/write_loop '
+
+run_taskset_no_build: 
+	taskset -c 0 bash -c 'make -C LinuxPrototypes/write_loop all'
+
+run_write_expt: build_expt
 	make -C LinuxPrototypes/write_loop all
+
+run_read_expt: build_expt
+	make -C LinuxPrototypes/read_loop all
+
+install_prereqs:
+	sudo apt-get install gcc flex bison build-essential libelf-dev libssl-dev
+
+REDIS_CMD=artifacts/redis/redis-server --protected-mode no --save '' --appendonly no
+TASKSET_CMD=taskset -c 0 bash -c
+
+run_redis:
+	${TASKSET_CMD} '${REDIS_CMD}' 
+
+run_redis_passthrough:
+	${TASKSET_CMD} 'shortcut.sh -p --- ${REDIS_CMD}' 
+
+run_redis_interpose:
+	${TASKSET_CMD} 'shortcut.sh --- ${REDIS_CMD}' 
+
+run_redis_elev:
+	${TASKSET_CMD} 'shortcut.sh -be --- ${REDIS_CMD}' 
+
+run_redis_sc_write:
+	${TASKSET_CMD} 'shortcut.sh -be -s "write->ksys_write" --- ${REDIS_CMD}' 
+
+run_redis_sc_read:
+	${TASKSET_CMD} 'shortcut.sh -be -s "read->ksys_read" --- ${REDIS_CMD}' 
+
+run_redis_sc_rw:
+	${TASKSET_CMD} 'shortcut.sh -be -s "write->ksys_write" -s "read->ksys_read" --- ${REDIS_CMD}' 
