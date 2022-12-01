@@ -76,7 +76,8 @@ run_read_expt: build_expt
 install_prereqs:
 	sudo apt-get install gcc flex bison build-essential libelf-dev libssl-dev
 
-REDIS_CMD=artifacts/redis/redis-server --protected-mode no --save '' --appendonly no
+REDIS_CMD=artifacts/redis/fed36/redis-server --protected-mode no --save '' --appendonly no
+
 TASKSET_CMD=taskset -c 0 bash -c
 
 run_redis:
@@ -100,6 +101,9 @@ run_redis_sc_read:
 run_redis_sc_rw:
 	${TASKSET_CMD} 'shortcut.sh -be -s "write->ksys_write" -s "read->ksys_read" --- ${REDIS_CMD}' 
 
+run_redis_tcp:
+	${TASKSET_CMD} 'shortcut.sh -be -s "write->tcp_sendmsg" --- ${REDIS_CMD}' 
+
 prepare:
 	ip addr add 192.168.122.238/24 dev enp1s0
 	ip link set up enp1s0
@@ -114,3 +118,5 @@ cmd:
 fix:
 	sudo systemctl unmask systemd-journald
 	sudo systemctl start systemd-journald
+
+#taskset -c 0 bash -c shortcut.sh -p --- ./LinuxPrototypes/getpid/getpid 1000000
