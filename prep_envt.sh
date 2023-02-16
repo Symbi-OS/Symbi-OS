@@ -5,6 +5,12 @@
 # you're running this multiple times. Only expected to run once.
 # This bug occurs when you take away, not add to the path.
 
+# Add idt_tool and friends
+BIN_PATH="$(pwd)/Tools/bin"
+if [[ "$PATH" != *"$BIN_PATH"* ]]; then
+    PATH=$PATH:$BIN_PATH
+fi
+
 RECIPES_PATH="$(pwd)/Tools/bin/recipes"
 # Add recipes which contains things like mitigate all
 if [[ "$PATH" != *"$RECIPES_PATH"* ]]; then
@@ -33,4 +39,3 @@ fi
 # Export path
 export PATH
 export LD_LIBRARY_PATH
-

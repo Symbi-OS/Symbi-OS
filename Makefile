@@ -20,37 +20,44 @@ build_sym_lib:
 # Linux
 # ====================================================
 
+KERN_VER=5.14.0-symbiote_ist+
+CONT=linux_builder35
+CONFIG=/root/Symbi-OS/linuxConfigs/5.14/depricate/golden_config_bnx2_pnp
+LINUX_PATH=/root/Symbi-OS/linux
+
+
 # When in doubt, blow it all away and start over.
 l_mrproper:
-	docker exec linux_builder35 make -C /root/Symbi-OS/linux mrproper
+	docker exec $(CONT) make -C $(LINUX_PATH) mrproper
 
 l_config:
-	docker exec linux_builder35 cp /root/Symbi-OS/linuxConfigs/5.14/depricate/golden_config_bnx2_pnp /root/Symbi-OS/linux/.config
-	docker exec linux_builder35 make -C /root/Symbi-OS/linux olddefconfig
+	docker exec $(CONT) cp $(CONFIG) $(LINUX_PATH)/.config
+	docker exec $(CONT) make -C $(LINUX_PATH) olddefconfig
 
 l_build:
-	docker exec linux_builder35 make -C /root/Symbi-OS/linux -j79
+	docker exec $(CONT) make -C $(LINUX_PATH) -j79
+
+l_ins_mods:
+	docker exec $(CONT) make -C $(LINUX_PATH) modules_install -j79
 
 # I think you never want to grab the initrd created in the container.
 # But you want the compressed kern w/ the right version. And the sys map.
 l_ins_kern:
-	docker exec linux_builder35 make -C /root/Symbi-OS/linux install
+	docker exec $(CONT) make -C $(LINUX_PATH) install
 
-l_ins_mods:
-	docker exec linux_builder35 make -C /root/Symbi-OS/linux modules_install -j79
 
 l_ins:
 	make l_ins_mods
 	make l_ins_kern
 
 l_cp_kern:
-	sudo docker cp linux_builder35:/boot/vmlinuz-5.14.0-symbiote_mm+ /boot/
+	sudo docker cp $(CONT):/boot/vmlinuz-$(KERN_VER) /boot/
 
 l_cp_mods:
-	sudo docker cp linux_builder35:/lib/modules/5.14.0-symbiote_mm+ /lib/modules/
+	sudo docker cp $(CONT):/lib/modules/$(KERN_VER) /lib/modules/
 
 l_cp_sys_map:
-	sudo docker cp linux_builder35:/boot/System.map-5.14.0-symbiote_mm+ /boot/
+	sudo docker cp $(CONT):/boot/System.map-$(KERN_VER) /boot/
 
 l_cp:
 	make l_cp_mods
@@ -58,14 +65,14 @@ l_cp:
 	make l_cp_sys_map
 
 l_initrd:
-	sudo dracut --kver=5.14.0-symbiote_mm+ --force
+	sudo dracut --kver=$(KERN_VER) --force
 
 # I tested using these with grubby and it failed.
 # I think it might be worth a closer look if you want this degree of freedom.
 l_sl:
 	sudo rm -f /boot/sym_vmlinuz /boot/sym_initramfs
-	sudo ln -s /boot/vmlinuz-5.14.0-symbiote_mm+ /boot/sym_vmlinuz
-	sudo ln -s /boot/initramfs-5.14.0-symbiote_mm+.img /boot/sym_initramfs
+	sudo ln -s /boot/vmlinuz-$(KERN_VER) /boot/sym_vmlinuz
+	sudo ln -s /boot/initramfs-$(KERN_VER).img /boot/sym_initramfs
 
 # This is good for a quick rebuild of the kernel.
 # You don't need to rebuild modules.
@@ -77,16 +84,46 @@ l_update_kern:
 	make l_cp_kern
 	make l_cp_sys_map
 
+l_update_kern_and_reboot:
+	sudo echo hi
+	make l_update_kern
+	sudo reboot
+
+# Long path that does it all.
+l_all:
+	sudo echo hi
+	make l_mrproper
+	make l_config
+	make l_build
+	make l_ins
+	make l_cp
+	make l_initrd
+
+l_cp_vmlinux:
+	docker cp $(CONT):$(LINUX_PATH)/vmlinux .
+
 grubby_info:
 	sudo grubby --info=ALL
-change_sudo_timeout:
+
+boldprint = @printf '\e[1m%s\e[0m\n' $1
+help_linux:
+	$(call boldprint, 'help_linux')
+	@printf '\tl_update_kern\n'
+	@printf '\tl_update_kern_and_reboot\n'
+	@printf '\tl_cp_vmlinux\n'
+	@printf '\n'
+
+help_grubby:
+	$(call boldprint, 'help_grubby')
+	@printf "\t grubby_rm_arg kp=<kernel_path> arg=<arg>\n"
+	@printf "\t grubby_add_arg kp=<kernel_path> arg=<arg>\n"
+	@printf "\t grubby_rm_kern kp=<kernel_path>\n"
+	@printf "\t grubby_cp_default kp=<kernel_path> init=<initramfs_path>\n"
+	@printf '\n'
 
 help:
-	@echo "grubby_rm_arg kp=<kernel_path> arg=<arg>"
-	@echo "grubby_add_arg kp=<kernel_path> arg=<arg>"
-	@echo "grubby_rm_kern kp=<kernel_path>"
-	@echo "grubby_cp_default kp=<kernel_path> init=<initramfs_path>"
-
+	@make help_grubby
+	@make help_linux
 
 grubby_rm_kern:
 	sudo grubby --remove-kernel $(kp)
