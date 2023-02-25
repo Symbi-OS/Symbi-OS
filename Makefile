@@ -17,10 +17,25 @@ build_sym_lib:
 	make -C ./Apps/include
 
 # ====================================================
+# Jupyter
+# ====================================================
+
+# sudo dnf install python3-notebook mathjax sscg
+# pip3 install ipykernel
+# sudo dnf install python3-seaborn python3-lxml python3-basemap python3-scikit-image python3-scikit-learn python3-sympy python3-dask+dataframe python3-nltk
+# python3 -m ipykernel install --user --name=sym
+# jupyter notebook
+# Put url into Notebook: Select Notebook kernel
+
+
+
+
+
+# ====================================================
 # Linux
 # ====================================================
 
-KERN_VER=5.14.0-symbiote_ist+
+KERN_VER=5.14.0-symbiote_gs+
 CONT=linux_builder35
 CONFIG=/root/Symbi-OS/linuxConfigs/5.14/depricate/golden_config_bnx2_pnp
 LINUX_PATH=/root/Symbi-OS/linux
@@ -58,6 +73,13 @@ l_cp_mods:
 
 l_cp_sys_map:
 	sudo docker cp $(CONT):/boot/System.map-$(KERN_VER) /boot/
+
+l_cp_src:
+	sudo docker cp $(CONT):$(LINUX_PATH) .
+
+l_chmod_chgrp_src:
+	sudo chown -R $(USER) linux
+	sudo chgrp -R $(USER) linux
 
 l_cp:
 	make l_cp_mods
