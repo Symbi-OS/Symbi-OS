@@ -9,6 +9,11 @@ IDT_ENTRIES=256
 
 symbios_path = "../../"
 os.environ["LD_LIBRARY_PATH"] += ":" + symbios_path + "Symlib/dynam_build"
+path = os.path.abspath(symbios_path + "Tools/bin")
+os.environ["PATH"] += ":" + path
+
+path = os.path.abspath(symbios_path + "Tools/bin/recipes")
+os.environ["PATH"] += ":" + path
 
 def run_cmd(cmd):
     ret = subprocess.run(cmd.split(), capture_output=True, text=True)
