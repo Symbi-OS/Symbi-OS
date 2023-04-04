@@ -28,8 +28,39 @@ build_sym_lib:
 # Put url into Notebook: Select Notebook kernel
 
 
+# ====================================================
+# Docker
+# ====================================================
 
+install_docker:
+	sudo dnf install dnf-plugins-core -y
+	sudo dnf config-manager --add-repo https://download.docker.com/linux/fedora/docker-ce.repo -y
+	sudo dnf install docker-ce docker-ce-cli containerd.io -y
 
+docker_run:
+	sudo docker run --network host --privileged -idt --name linux_builder35 fedora:35
+
+docker_restart:
+	sudo docker restart linux_builder35
+
+docker_group_install:
+	sudo docker exec $(CONT) dnf group install "C Development Tools and Libraries" "Development Tools" -y
+	sudo docker exec $(CONT) dnf install fedpkg fedora-packager rpmdevtools ncurses-devel pesign grubby openssl-devel bc openssl htop the_silver_searcher redis psmisc libvirt @virtualization -y
+
+docker_git_make:
+	sudo docker exec $(CONT) dnf install git make -y
+
+docker_clone_sym:
+	sudo docker exec $(CONT) git clone --recurse-submodules git@github.com:Symbi-OS/Symbi-OS.git
+
+docker_attach:
+	sudo docker attach linux_builder35
+
+docker_start_service:
+	sudo systemctl start docker
+
+docker_enable_service:
+	sudo systemctl enable docker
 
 # ====================================================
 # Linux
