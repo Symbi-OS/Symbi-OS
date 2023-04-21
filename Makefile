@@ -1,20 +1,14 @@
 SHELL := /bin/bash
-# This is disconnected and fubar, but serves as rough documentation
-# about how to get a symbiote kernel ready to run.
+# add phony targets here
+.PHONY: help all 
 
-# Download kern and config.
-all: get_all
-get_all: get_sym_linux get_linux_configs get_apps_dir
+all: 
+	make -C Symlib
+	make -C Tools
 
-build_all: linux_kernel build_sym_lib
-# ====================================================
-# Apps
-# ====================================================
-get_apps_dir:
-	git clone git@github.com:Symbi-OS/Apps.git
-
-build_sym_lib:
-	make -C ./Apps/include
+help:
+	@make help_grubby
+	@make help_linux
 
 # ====================================================
 # Jupyter
@@ -32,6 +26,8 @@ build_sym_lib:
 # Docker
 # ====================================================
 
+CONT=linux_builder35
+RUN_IN_CONT=sudo docker exec $(CONT)
 install_docker:
 	sudo dnf install dnf-plugins-core -y
 	sudo dnf config-manager --add-repo https://download.docker.com/linux/fedora/docker-ce.repo -y
@@ -44,52 +40,87 @@ docker_restart:
 	sudo docker restart linux_builder35
 
 docker_group_install:
-	sudo docker exec $(CONT) dnf group install "C Development Tools and Libraries" "Development Tools" -y
-	sudo docker exec $(CONT) dnf install fedpkg fedora-packager rpmdevtools ncurses-devel pesign grubby openssl-devel bc openssl htop the_silver_searcher redis psmisc libvirt @virtualization -y
+	$(RUN_IN_CONT) dnf group install "C Development Tools and Libraries" "Development Tools" -y
+	$(RUN_IN_CONT) dnf install -y fedpkg fedora-packager rpmdevtools ncurses-devel pesign grubby openssl-devel bc \
+									openssl htop the_silver_searcher redis psmisc ncurses-devel flex bison \
+									elfutils-libelf-devel dwarves
+
+# This was on the 2nd line, but why would we need virtualization in the container?
+#libvirt @virtualization -y
 
 docker_git_make:
-	sudo docker exec $(CONT) dnf install git make -y
+	$(RUN_IN_CONT) dnf install git make -y
 
+# Why would we need symbiote stuff in the container that's just building our kernel?
 docker_clone_sym:
-	sudo docker exec $(CONT) git clone --recurse-submodules git@github.com:Symbi-OS/Symbi-OS.git
+	$(RUN_IN_CONT) git clone --recurse-submodules git@github.com:Symbi-OS/Symbi-OS.git
+
+# This is just for building, if you want to develop, you may as well
+# pull the whole Symbi-OS repo. 
+# Also, you'll have to get your keys figured out.
+docker_prep_linux_kelevate_build_only:
+	$(RUN_IN_CONT) git clone --branch 5.14-config --single-branch --depth 1 https://github.com/Symbi-OS/linux.git $(HOME)/linux
+	$(RUN_IN_CONT) git clone https://github.com/Symbi-OS/linuxConfigs.git  $(HOME)/linuxConfigs
 
 docker_attach:
 	sudo docker attach linux_builder35
 
+SERVICE_NAME := docker
+.PHONY += check-start-service
+
+check-start-service:
+	@STATUS=$$(systemctl is-active $(SERVICE_NAME)); \
+	if [ "$$STATUS" != "active" ]; then \
+		echo "Starting $(SERVICE_NAME)..."; \
+		systemctl start $(SERVICE_NAME); \
+	else \
+		echo "$(SERVICE_NAME) is already running"; \
+	fi
+
 docker_start_service:
-	sudo systemctl start docker
+	make check-start-service
 
 docker_enable_service:
 	sudo systemctl enable docker
+
+docker_setup_and_start:
+	make install_docker
+	make docker_start_service
+	make docker_run
+	make docker_git_make
+	make docker_group_install
 
 # ====================================================
 # Linux
 # ====================================================
 
-KERN_VER=5.14.0-symbiote_gs+
-CONT=linux_builder35
-CONFIG=/root/Symbi-OS/linuxConfigs/5.14/depricate/golden_config_bnx2_pnp
-LINUX_PATH=/root/Symbi-OS/linux
+KERN_VER=5.14.0-kElevate+
+#CONFIG=/root/Symbi-OS/linuxConfigs/5.14/depricate/golden_config_bnx2_pnp
 
+HOME=/root
+CONFIG=$(HOME)/linuxConfigs/5.14/USE_ME/symbiote_config
+BASELINE_CONFIG=$(HOME)/linuxConfigs/5.14/USE_ME/symbiote_config_off
+LINUX_PATH=$(HOME)/linux
+NUM_CPUS=$(shell nproc)
 
 # When in doubt, blow it all away and start over.
 l_mrproper:
-	docker exec $(CONT) make -C $(LINUX_PATH) mrproper
+	$(RUN_IN_CONT) make -C $(LINUX_PATH) mrproper
 
 l_config:
-	docker exec $(CONT) cp $(CONFIG) $(LINUX_PATH)/.config
-	docker exec $(CONT) make -C $(LINUX_PATH) olddefconfig
+	$(RUN_IN_CONT) cp $(CONFIG) $(LINUX_PATH)/.config
+	$(RUN_IN_CONT) make -C $(LINUX_PATH) olddefconfig
 
 l_build:
-	docker exec $(CONT) make -C $(LINUX_PATH) -j79
+	$(RUN_IN_CONT) make -C $(LINUX_PATH) EXTRAVERSION='-kElevate' -j$(NUM_CPUS)
 
 l_ins_mods:
-	docker exec $(CONT) make -C $(LINUX_PATH) modules_install -j79
+	$(RUN_IN_CONT) make -C $(LINUX_PATH) modules_install -j$(NUM_CPUS)
 
 # I think you never want to grab the initrd created in the container.
 # But you want the compressed kern w/ the right version. And the sys map.
 l_ins_kern:
-	docker exec $(CONT) make -C $(LINUX_PATH) install
+	$(RUN_IN_CONT) make -C $(LINUX_PATH) install
 
 
 l_ins:
@@ -117,6 +148,8 @@ l_cp:
 	make l_cp_kern
 	make l_cp_sys_map
 
+# I've been seeing the following error when I run this...
+# ERROR: src/skipcpio/skipcpio.c:191:main(): fwrite
 l_initrd:
 	sudo dracut --kver=$(KERN_VER) --force
 
@@ -143,7 +176,7 @@ l_update_kern_and_reboot:
 	sudo reboot
 
 # Long path that does it all.
-l_all:
+l_all_kelevate:
 	sudo echo hi
 	make l_mrproper
 	make l_config
@@ -168,21 +201,20 @@ help_linux:
 
 help_grubby:
 	$(call boldprint, 'help_grubby')
+	@printf "\t grubby_info\n"
 	@printf "\t grubby_rm_arg kp=<kernel_path> arg=<arg>\n"
 	@printf "\t grubby_add_arg kp=<kernel_path> arg=<arg>\n"
 	@printf "\t grubby_rm_kern kp=<kernel_path>\n"
 	@printf "\t grubby_cp_default kp=<kernel_path> init=<initramfs_path>\n"
 	@printf '\n'
 
-help:
-	@make help_grubby
-	@make help_linux
-
 grubby_rm_kern:
 	sudo grubby --remove-kernel $(kp)
 
 grubby_cp_default:
 	sudo grubby --add-kernel=$(kp) --copy-default --title="sym_test" --initrd=$(init)
+grubby_get_default:
+	sudo grubby --default-kernel
 
 grubby_rm_arg:
 	sudo grubby --update-kernel=$(kp) --remove-arg=$(arg)
@@ -196,82 +228,3 @@ config_grub_sym: /boot/vmlinuz-5.14.0-symbiote+
 	sudo grubby --remove-args="" --args="mitigations=off nosmep nosmap isolcpus=0" --update-kernel /boot/vmlinuz-5.14.0-symbiote+
 
 # ====================================================
-
-linux_kernel_clean:
-	cd linux && make clean
-
-clean: linux_kernel_clean
-
-build_expt:
-	make -C Symlib/ clean
-	make -C Symlib/
-	make -C Tools/ clean
-	make -C Tools/
-	make -C Tools/ mitigate
-
-run_taskset_long:
-	taskset -c 0 bash -c 'make -C LinuxPrototypes/write_loop run_elev_sc_wr_only_long'
-
-run_taskset_elev_long:
-	taskset -c 0 bash -c 'make -C LinuxPrototypes/write_loop run_elev_long'
-
-run_taskset: build_expt
-	taskset -c 0 bash -c 'make -C LinuxPrototypes/write_loop '
-
-run_taskset_no_build: 
-	taskset -c 0 bash -c 'make -C LinuxPrototypes/write_loop all'
-
-run_write_expt: build_expt
-	make -C LinuxPrototypes/write_loop all
-
-run_read_expt: build_expt
-	make -C LinuxPrototypes/read_loop all
-
-install_prereqs:
-	sudo apt-get install gcc flex bison build-essential libelf-dev libssl-dev
-
-REDIS_CMD=artifacts/redis/fed36/redis-server --protected-mode no --save '' --appendonly no
-
-TASKSET_CMD=taskset -c 0 bash -c
-
-run_redis:
-	${TASKSET_CMD} '${REDIS_CMD}' 
-
-run_redis_passthrough:
-	${TASKSET_CMD} 'shortcut.sh -p --- ${REDIS_CMD}' 
-
-run_redis_interpose:
-	${TASKSET_CMD} 'shortcut.sh --- ${REDIS_CMD}' 
-
-run_redis_elev:
-	${TASKSET_CMD} 'shortcut.sh -be --- ${REDIS_CMD}' 
-
-run_redis_sc_write:
-	${TASKSET_CMD} 'shortcut.sh -be -s "write->__x64_sys_write" --- ${REDIS_CMD}' 
-
-run_redis_sc_read:
-	${TASKSET_CMD} 'shortcut.sh -be -s "read->__x64_sys_read" --- ${REDIS_CMD}' 
-
-run_redis_sc_rw:
-	${TASKSET_CMD} 'shortcut.sh -be -s "write->__x64_sys_write" -s "read->__x64_sys_read" --- ${REDIS_CMD}' 
-
-run_redis_tcp:
-	${TASKSET_CMD} 'shortcut.sh -be -s "write->tcp_sendmsg" --- ${REDIS_CMD}' 
-
-prepare:
-	ip addr add 192.168.122.238/24 dev enp1s0
-	ip link set up enp1s0
-	sudo systemctl mask systemd-journald
-	sudo systemctl stop systemd-journald
-	sudo systemctl stop systemd-udevd
-	. prep_envt.sh
-	mitigate all
-cmd:
-	LD_LIBRARY_PATH=/home/sym/Symbi-OS/Symlib/dynam_build  BEGIN_ELE=1 SHORTCUT_write_TO_ksys_write=1 SHORTCUT_read_TO_ksys_read=1 LD_PRELOAD=/home/sym/Symbi-OS/Tools/bin/shortcut/sc_lib.so  artifacts/redis/redis-server --protected-mode no --save  --appendonly no
-
-fix:
-	sudo systemctl unmask systemd-journald
-	sudo systemctl start systemd-journald
-
-#taskset -c 0 bash -c shortcut.sh -p --- ./LinuxPrototypes/getpid/getpid 1000000
-
