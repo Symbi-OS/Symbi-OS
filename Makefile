@@ -6,6 +6,11 @@ all:
 	make -C Symlib
 	make -C Tools
 
+master:
+	make docker_setup_and_start
+	make l_all_kelevate
+
+
 help:
 	@make help_grubby
 	@make help_linux
@@ -55,12 +60,7 @@ docker_git_make:
 docker_clone_sym:
 	$(RUN_IN_CONT) git clone --recurse-submodules git@github.com:Symbi-OS/Symbi-OS.git
 
-# This is just for building, if you want to develop, you may as well
-# pull the whole Symbi-OS repo. 
-# Also, you'll have to get your keys figured out.
-docker_prep_linux_kelevate_build_only:
-	$(RUN_IN_CONT) git clone --branch 5.14-config --single-branch --depth 1 https://github.com/Symbi-OS/linux.git $(HOME)/linux
-	$(RUN_IN_CONT) git clone https://github.com/Symbi-OS/linuxConfigs.git  $(HOME)/linuxConfigs
+
 
 docker_attach:
 	sudo docker attach linux_builder35
@@ -102,6 +102,12 @@ CONFIG=$(HOME)/linuxConfigs/5.14/USE_ME/symbiote_config
 BASELINE_CONFIG=$(HOME)/linuxConfigs/5.14/USE_ME/symbiote_config_off
 LINUX_PATH=$(HOME)/linux
 NUM_CPUS=$(shell nproc)
+
+# This is just for building, if you want to develop, you may as well
+# pull the whole Symbi-OS repo. 
+docker_prep_linux_kelevate_build_only:
+	$(RUN_IN_CONT) git clone --branch 5.14-config --single-branch --depth 1 https://github.com/Symbi-OS/linux.git $(HOME)/linux
+	$(RUN_IN_CONT) git clone https://github.com/Symbi-OS/linuxConfigs.git  $(HOME)/linuxConfigs
 
 # When in doubt, blow it all away and start over.
 l_mrproper:
@@ -178,6 +184,7 @@ l_update_kern_and_reboot:
 # Long path that does it all.
 l_all_kelevate:
 	sudo echo hi
+	make docker_prep_linux_kelevate_build_only
 	make l_mrproper
 	make l_config
 	make l_build
