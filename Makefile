@@ -19,15 +19,13 @@ NUM_CPUS=$(shell nproc)
 help:
 	@$(MAKE) help_grubby
 	@$(MAKE) help_linux
+	@$(MAKE) help_docker
 
 install_prereqs:
 	sudo dnf install -y gcc
 
 # Symlib has to be built first
-run_ex: 
-	$(MAKE) -C Symlib
-	$(MAKE) -C Tools
-run_ex:
+build_symlib_tools:
 	rm -rf Symlib Tools LinuxPrototypes
 	git clone https://github.com/Symbi-OS/LinuxPrototypes.git
 	git clone https://github.com/Symbi-OS/Symlib.git
@@ -41,13 +39,13 @@ disable_sudo_pw_checking:
 	echo 'kele ALL=(ALL) NOPASSWD:ALL' | sudo tee -a /etc/sudoers
 
 enable_sudo_pw_checking:
-	sudo sed -i.bak '/exampleuser ALL=(ALL) NOPASSWD:ALL/d' /etc/sudoers
+	sudo sed -i.bak '/kele ALL=(ALL) NOPASSWD:ALL/d' /etc/sudoers
 
 master:
 	$(MAKE) disable_sudo_pw_checking
 	$(MAKE) docker_setup_and_start
 	$(MAKE) l_all_kelevate
-	$(MAKE) grubby_set_kele_default_reboot
+	$(MAKE) grubby_set_kele_default_and_reboot
 	$(MAKE) enable_sudo_pw_checking
 
 # ====================================================
@@ -78,7 +76,7 @@ docker_run:
 docker_restart:
 	sudo docker restart linux_builder35
 
-docker_group_install:
+docker_install_dev_packages:
 	$(RUN_IN_CONT) dnf group install "C Development Tools and Libraries" "Development Tools" -y
 	$(RUN_IN_CONT) dnf install -y fedpkg fedora-packager rpmdevtools ncurses-devel pesign grubby openssl-devel bc \
 									openssl htop the_silver_searcher redis psmisc ncurses-devel flex bison \
@@ -87,12 +85,12 @@ docker_group_install:
 # This was on the 2nd line, but why would we need virtualization in the container?
 #libvirt @virtualization -y
 
-docker_git_make:
+docker_install_git_make:
 	$(RUN_IN_CONT) dnf install git make -y
 
 # Why would we need symbiote stuff in the container that's just building our kernel?
-docker_clone_sym:
-	$(RUN_IN_CONT) git clone --recurse-submodules git@github.com:Symbi-OS/Symbi-OS.git
+# docker_clone_sym:
+# $(RUN_IN_CONT) git clone --recurse-submodules git@github.com:Symbi-OS/Symbi-OS.git
 
 docker_attach:
 	sudo docker attach linux_builder35
@@ -116,8 +114,8 @@ docker_setup_and_start:
 	$(MAKE) install_docker
 	$(MAKE) docker_start_service
 	$(MAKE) docker_run
-	$(MAKE) docker_git_make
-	$(MAKE) docker_group_install
+	$(MAKE) docker_install_git_make
+	$(MAKE) docker_install_dev_packages
 
 # ====================================================
 # Linux
@@ -127,7 +125,7 @@ docker_setup_and_start:
 
 # This is just for building, if you want to develop, you may as well
 # pull the whole Symbi-OS repo. 
-docker_prep_linux_kelevate_build_only:
+docker_prepare_linux_build:
 	$(RUN_IN_CONT) git clone --branch 5.14-config --single-branch --depth 1 https://github.com/Symbi-OS/linux.git $(HOME)/linux
 	$(RUN_IN_CONT) git clone https://github.com/Symbi-OS/linuxConfigs.git  $(HOME)/linuxConfigs
 
@@ -205,7 +203,7 @@ l_update_kern_and_reboot:
 # Long path that does it all.
 l_all_kelevate:
 	sudo echo hi
-	$(MAKE) docker_prep_linux_kelevate_build_only
+	$(MAKE) docker_prepare_linux_build
 	$(MAKE) l_mrproper
 	$(MAKE) l_config
 	$(MAKE) l_build
@@ -220,20 +218,31 @@ grubby_info:
 	sudo grubby --info=ALL
 
 boldprint = @printf '\e[1m%s\e[0m\n' $1
+
 help_linux:
-	$(call boldprint, 'help_linux')
-	@printf '\tl_update_kern\n'
-	@printf '\tl_update_kern_and_reboot\n'
-	@printf '\tl_cp_vmlinux\n'
+	$(call boldprint, '===== Linux Build and Update Targets =====')
+	@printf '\tl_update_kern\t\t\t- Build and update the kernel\n'
+	@printf '\tl_update_kern_and_reboot\t\t- Build and update the kernel, then reboot\n'
+	@printf '\tl_cp_vmlinux\t\t\t- Copy vmlinux from the container to the host\n'
 	@printf '\n'
 
 help_grubby:
-	$(call boldprint, 'help_grubby')
-	@printf "\t grubby_info\n"
-	@printf "\t grubby_rm_arg kp=<kernel_path> arg=<arg>\n"
-	@printf "\t grubby_add_arg kp=<kernel_path> arg=<arg>\n"
-	@printf "\t grubby_rm_kern kp=<kernel_path>\n"
-	@printf "\t grubby_cp_default kp=<kernel_path> init=<initramfs_path>\n"
+	$(call boldprint, '===== Grubby Management Targets =====')
+	@printf "\tgrubby_info\t\t\t- Display information about all available kernels\n"
+	@printf "\tgrubby_rm_kern kp=<kernel_path>\t- Remove the specified kernel\n"
+	@printf "\tgrubby_cp_default kp=<kernel_path> init=<initramfs_path>\t- Copy default kernel with specified initramfs\n"
+	@printf "\tgrubby_set_kele_default_and_reboot\t- Add kele kernel, set it as default and reboot\n"
+	@printf "\tgrubby_get_default\t\t- Display the default kernel\n"
+	@printf "\tgrubby_rm_arg kp=<kernel_path> arg=<arg>\t- Remove an argument from the specified kernel\n"
+	@printf "\tgrubby_add_arg kp=<kernel_path> arg=<arg>\t- Add an argument to the specified kernel\n"
+	@printf '\n'
+
+help_docker:
+	$(call boldprint, '===== Docker Management Targets =====')
+	@printf '\tinstall_docker\t\t\t- Install Docker and its dependencies\n'
+	@printf '\tdocker_start_service\t\t- Start the Docker service\n'
+	@printf '\tdocker_enable_service\t\t- Enable the Docker service\n'
+	@printf '\tdocker_setup_and_start\t\t- Install Docker, start and enable the service, and create a container\n'
 	@printf '\n'
 
 grubby_rm_kern:
@@ -242,7 +251,7 @@ grubby_rm_kern:
 grubby_cp_default:
 	sudo grubby --add-kernel=$(kp) --copy-default --title="sym_test" --initrd=$(init)
 
-grubby_set_kele_default_reboot:
+grubby_set_kele_default_and_reboot:
 	sudo grubby --add-kernel=vmlinuz-5.14.0-kElevate+ --copy-default --title="kele" --initrd=initramfs-5.14.0-kElevate+.img --args="nosmep nosmap nokaslr"
 	sudo grubby --set-default=vmlinuz-5.14.0-kElevate+
 	sudo reboot
@@ -255,9 +264,5 @@ grubby_rm_arg:
 
 grubby_add_arg:
 	sudo grubby --update-kernel=$(kp) --arg=$(arg)
-
-# Linux install already created the entry, we just edit it.
-config_grub_sym: /boot/vmlinuz-5.14.0-symbiote+
-	sudo grubby --remove-args="" --args="mitigations=off nosmep nosmap isolcpus=0" --update-kernel /boot/vmlinuz-5.14.0-symbiote+
 
 # ====================================================
