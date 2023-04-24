@@ -27,12 +27,28 @@ install_prereqs:
 run_ex: 
 	$(MAKE) -C Symlib
 	$(MAKE) -C Tools
+run_ex:
+	rm -rf Symlib Tools LinuxPrototypes
+	git clone https://github.com/Symbi-OS/LinuxPrototypes.git
+	git clone https://github.com/Symbi-OS/Symlib.git
+	git clone https://github.com/Symbi-OS/Tools.git
+	$(MAKE) install_prereqs
+	$(MAKE) -C Symlib
+	$(MAKE) -C Tools
+
+disable_sudo_pw_checking:
+	sudo cp /etc/sudoers /etc/sudoers.bak
+	echo 'kele ALL=(ALL) NOPASSWD:ALL' | sudo tee -a /etc/sudoers
+
+enable_sudo_pw_checking:
+	sudo sed -i.bak '/exampleuser ALL=(ALL) NOPASSWD:ALL/d' /etc/sudoers
 
 master:
+	$(MAKE) disable_sudo_pw_checking
 	$(MAKE) docker_setup_and_start
 	$(MAKE) l_all_kelevate
 	$(MAKE) grubby_set_kele_default_reboot
-
+	$(MAKE) enable_sudo_pw_checking
 
 # ====================================================
 # Jupyter
@@ -227,7 +243,7 @@ grubby_cp_default:
 	sudo grubby --add-kernel=$(kp) --copy-default --title="sym_test" --initrd=$(init)
 
 grubby_set_kele_default_reboot:
-	sudo grubby --add-kernel=vmlinuz-5.14.0-kElevate+ --copy-default --title="kele" --initrd=initramfs-5.14.0-kElevate+.img --args="nosmep nosmap"
+	sudo grubby --add-kernel=vmlinuz-5.14.0-kElevate+ --copy-default --title="kele" --initrd=initramfs-5.14.0-kElevate+.img --args="nosmep nosmap nokaslr"
 	sudo grubby --set-default=vmlinuz-5.14.0-kElevate+
 	sudo reboot
 
