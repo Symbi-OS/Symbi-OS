@@ -31,6 +31,7 @@ run_ex:
 master:
 	$(MAKE) docker_setup_and_start
 	$(MAKE) l_all_kelevate
+	$(MAKE) grubby_set_kele_default_reboot
 
 
 # ====================================================
