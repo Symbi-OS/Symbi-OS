@@ -252,7 +252,7 @@ grubby_cp_default:
 	sudo grubby --add-kernel=$(kp) --copy-default --title="sym_test" --initrd=$(init)
 
 grubby_set_kele_default_and_reboot:
-	sudo grubby --add-kernel=vmlinuz-5.14.0-kElevate+ --copy-default --title="kele" --initrd=initramfs-5.14.0-kElevate+.img --args="nosmep nosmap nokaslr"
+	sudo grubby --add-kernel=vmlinuz-5.14.0-kElevate+ --copy-default --title="kele" --initrd=initramfs-5.14.0-kElevate+.img --args="nosmep nosmap nokaslr nopti"
 	sudo grubby --set-default=vmlinuz-5.14.0-kElevate+
 	sudo reboot
 
