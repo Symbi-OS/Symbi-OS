@@ -1,19 +1,37 @@
 SHELL := /bin/bash
-# add phony targets here
-.PHONY: help all 
+.PHONY: help all master install_docker docker_start_service docker_enable_service check-start-service
 
-all: 
-	make -C Symlib
-	make -C Tools
+# Common variables
+CONT=linux_builder35
+RUN_IN_CONT=sudo docker exec $(CONT)
 
-master:
-	make docker_setup_and_start
-	make l_all_kelevate
+SERVICE_NAME := docker
 
+KERN_VER=5.14.0-kElevate+
+#CONFIG=/root/Symbi-OS/linuxConfigs/5.14/depricate/golden_config_bnx2_pnp
+
+HOME=/root
+CONFIG=$(HOME)/linuxConfigs/5.14/USE_ME/symbiote_config
+BASELINE_CONFIG=$(HOME)/linuxConfigs/5.14/USE_ME/symbiote_config_off
+LINUX_PATH=$(HOME)/linux
+NUM_CPUS=$(shell nproc)
 
 help:
-	@make help_grubby
-	@make help_linux
+	@$(MAKE) help_grubby
+	@$(MAKE) help_linux
+
+install_prereqs:
+	sudo dnf install -y gcc
+
+# Symlib has to be built first
+run_ex: 
+	$(MAKE) -C Symlib
+	$(MAKE) -C Tools
+
+master:
+	$(MAKE) docker_setup_and_start
+	$(MAKE) l_all_kelevate
+
 
 # ====================================================
 # Jupyter
@@ -31,8 +49,7 @@ help:
 # Docker
 # ====================================================
 
-CONT=linux_builder35
-RUN_IN_CONT=sudo docker exec $(CONT)
+
 install_docker:
 	sudo dnf install dnf-plugins-core -y
 	sudo dnf config-manager --add-repo https://download.docker.com/linux/fedora/docker-ce.repo -y
@@ -60,48 +77,36 @@ docker_git_make:
 docker_clone_sym:
 	$(RUN_IN_CONT) git clone --recurse-submodules git@github.com:Symbi-OS/Symbi-OS.git
 
-
-
 docker_attach:
 	sudo docker attach linux_builder35
-
-SERVICE_NAME := docker
-.PHONY += check-start-service
 
 check-start-service:
 	@STATUS=$$(systemctl is-active $(SERVICE_NAME)); \
 	if [ "$$STATUS" != "active" ]; then \
 		echo "Starting $(SERVICE_NAME)..."; \
-		systemctl start $(SERVICE_NAME); \
+		sudo systemctl start $(SERVICE_NAME); \
 	else \
 		echo "$(SERVICE_NAME) is already running"; \
 	fi
 
 docker_start_service:
-	make check-start-service
+	$(MAKE) check-start-service
 
 docker_enable_service:
 	sudo systemctl enable docker
 
 docker_setup_and_start:
-	make install_docker
-	make docker_start_service
-	make docker_run
-	make docker_git_make
-	make docker_group_install
+	$(MAKE) install_docker
+	$(MAKE) docker_start_service
+	$(MAKE) docker_run
+	$(MAKE) docker_git_make
+	$(MAKE) docker_group_install
 
 # ====================================================
 # Linux
 # ====================================================
 
-KERN_VER=5.14.0-kElevate+
-#CONFIG=/root/Symbi-OS/linuxConfigs/5.14/depricate/golden_config_bnx2_pnp
 
-HOME=/root
-CONFIG=$(HOME)/linuxConfigs/5.14/USE_ME/symbiote_config
-BASELINE_CONFIG=$(HOME)/linuxConfigs/5.14/USE_ME/symbiote_config_off
-LINUX_PATH=$(HOME)/linux
-NUM_CPUS=$(shell nproc)
 
 # This is just for building, if you want to develop, you may as well
 # pull the whole Symbi-OS repo. 
@@ -111,27 +116,26 @@ docker_prep_linux_kelevate_build_only:
 
 # When in doubt, blow it all away and start over.
 l_mrproper:
-	$(RUN_IN_CONT) make -C $(LINUX_PATH) mrproper
+	$(RUN_IN_CONT) $(MAKE) -C $(LINUX_PATH) mrproper
 
 l_config:
 	$(RUN_IN_CONT) cp $(CONFIG) $(LINUX_PATH)/.config
-	$(RUN_IN_CONT) make -C $(LINUX_PATH) olddefconfig
+	$(RUN_IN_CONT) $(MAKE) -C $(LINUX_PATH) olddefconfig
 
 l_build:
-	$(RUN_IN_CONT) make -C $(LINUX_PATH) EXTRAVERSION='-kElevate' -j$(NUM_CPUS)
+	$(RUN_IN_CONT) $(MAKE) -C $(LINUX_PATH) EXTRAVERSION='-kElevate' -j$(NUM_CPUS)
 
 l_ins_mods:
-	$(RUN_IN_CONT) make -C $(LINUX_PATH) modules_install -j$(NUM_CPUS)
+	$(RUN_IN_CONT) $(MAKE) -C $(LINUX_PATH) modules_install -j$(NUM_CPUS)
 
 # I think you never want to grab the initrd created in the container.
 # But you want the compressed kern w/ the right version. And the sys map.
 l_ins_kern:
-	$(RUN_IN_CONT) make -C $(LINUX_PATH) install
-
+	$(RUN_IN_CONT) $(MAKE) -C $(LINUX_PATH) install
 
 l_ins:
-	make l_ins_mods
-	make l_ins_kern
+	$(MAKE) l_ins_mods
+	$(MAKE) l_ins_kern
 
 l_cp_kern:
 	sudo docker cp $(CONT):/boot/vmlinuz-$(KERN_VER) /boot/
@@ -150,9 +154,9 @@ l_chmod_chgrp_src:
 	sudo chgrp -R $(USER) linux
 
 l_cp:
-	make l_cp_mods
-	make l_cp_kern
-	make l_cp_sys_map
+	$(MAKE) l_cp_mods
+	$(MAKE) l_cp_kern
+	$(MAKE) l_cp_sys_map
 
 # I've been seeing the following error when I run this...
 # ERROR: src/skipcpio/skipcpio.c:191:main(): fwrite
@@ -171,26 +175,26 @@ l_sl:
 # Trigger sudo early so we don't have to wait for the build.
 l_update_kern:
 	sudo echo hi
-	make l_build
-	make l_ins_kern
-	make l_cp_kern
-	make l_cp_sys_map
+	$(MAKE) l_build
+	$(MAKE) l_ins_kern
+	$(MAKE) l_cp_kern
+	$(MAKE) l_cp_sys_map
 
 l_update_kern_and_reboot:
 	sudo echo hi
-	make l_update_kern
+	$(MAKE) l_update_kern
 	sudo reboot
 
 # Long path that does it all.
 l_all_kelevate:
 	sudo echo hi
-	make docker_prep_linux_kelevate_build_only
-	make l_mrproper
-	make l_config
-	make l_build
-	make l_ins
-	make l_cp
-	make l_initrd
+	$(MAKE) docker_prep_linux_kelevate_build_only
+	$(MAKE) l_mrproper
+	$(MAKE) l_config
+	$(MAKE) l_build
+	$(MAKE) l_ins
+	$(MAKE) l_cp
+	$(MAKE) l_initrd
 
 l_cp_vmlinux:
 	docker cp $(CONT):$(LINUX_PATH)/vmlinux .
@@ -220,6 +224,12 @@ grubby_rm_kern:
 
 grubby_cp_default:
 	sudo grubby --add-kernel=$(kp) --copy-default --title="sym_test" --initrd=$(init)
+
+grubby_set_kele_default_reboot:
+	sudo grubby --add-kernel=vmlinuz-5.14.0-kElevate+ --copy-default --title="kele" --initrd=initramfs-5.14.0-kElevate+.img --args="nosmep nosmap"
+	sudo grubby --set-default=vmlinuz-5.14.0-kElevate+
+	sudo reboot
+
 grubby_get_default:
 	sudo grubby --default-kernel
 
@@ -228,7 +238,6 @@ grubby_rm_arg:
 
 grubby_add_arg:
 	sudo grubby --update-kernel=$(kp) --arg=$(arg)
-
 
 # Linux install already created the entry, we just edit it.
 config_grub_sym: /boot/vmlinuz-5.14.0-symbiote+
