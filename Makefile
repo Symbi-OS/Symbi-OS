@@ -1,73 +1,82 @@
 SHELL := /bin/bash
 .PHONY: help all master install_docker docker_start_service docker_enable_service check-start-service
-# TODO figure out actual configs later XXX
 
-# Major Version Controls
+# ========================
+# Help targets
+# ========================
+help: help_all help_docker help_linux help_grubby
 
-FEDORA_RELEASE=38
-KERN_REL=6.3.0
-KERN_EXTRAVERSION=
-LINUX_BUILD=--branch 6.3 --single-branch --depth 1 
-# No "+" because it's on a tagged commit
-KERN_VER=$(KERN_REL)$(KERN_EXTRAVERSION)
-CONFIG=$(HOME)/linuxConfigs/5.14/USE_ME/symbiote_config_off
+boldprint = @printf '\e[1m%s\e[0m\n' $1
 
+help_all:
+	$(call boldprint, '===== Kernels to Build =====')
+	@printf '\t5.14.0\t\t\t- 5.14.0 kernel\n'
+	@printf '\t5.14.0-kelevate\t\t\t- 5.14.0 kernel with kelevate\n'
+	@printf '\t6.3.0\t\t\t- 6.3.0 kernel\n'
+	@printf '\t6.3.0-kelevate\t\t\t- 6.3.0 kernel with kelevate\n'
+
+# ========================
+# Master target
+# ========================
+master: disable_sudo_pw_checking docker_setup_and_start l_all grubby_set_kele_default_and_reboot enable_sudo_pw_checking
+# no_reboot: disable_sudo_pw_checking docker_setup_and_start l_all
+
+# ========================
+# Kernel targets
+# ========================
+6.3.0: FEDORA_RELEASE=38
+6.3.0: KERN_REL=6.3.0
+6.3.0: KERN_EXTRAVERSION=
+6.3.0: LINUX_BUILD=--branch 6.3 --single-branch --depth 1 
+6.3.0: KERN_VER=$(KERN_REL)$(KERN_EXTRAVERSION) # No "+" because it's on a tagged commit
+6.3.0: CONFIG=$(HOME)/linuxConfigs/5.14/USE_ME/symbiote_config_off
+
+6.3.0: master
+
+6.3.0-kElevate: FEDORA_RELEASE=38
+6.3.0-kElevate: KERN_REL=6.3.0
+6.3.0-kElevate: KERN_EXTRAVERSION=-kElevate
+6.3.0-kElevate: LINUX_BUILD=--branch 6.3 --single-branch --depth 1
+6.3.0-kElevate: KERN_VER=$(KERN_REL)$(KERN_EXTRAVERSION)+
+6.3.0-kElevate: CONFIG=$(HOME)/linuxConfigs/5.14/USE_ME/symbiote_config
+
+6.3.0-kElevate: master
+
+# Baseline 5.14 kernel. Tested up & not including boot.
+5.14.0: FEDORA_RELEASE=35
+5.14.0: KERN_REL=5.14.0
+5.14.0: KERN_EXTRAVERSION=
+5.14.0: LINUX_BUILD=--branch 5.14-config --single-branch --depth 1 
+5.14.0: KERN_VER=$(KERN_REL)$(KERN_EXTRAVERSION)+
+5.14.0: CONFIG=$(HOME)/linuxConfigs/5.14/USE_ME/symbiote_config_off
+
+5.14.0: master
 
 # 5.14 kernel with kElevate patches
 # Tested this one, works up to trying to boot the kernel.
-# FEDORA_RELEASE=35
-# KERN_REL=5.14.0
-# KERN_EXTRAVERSION=-kElevate
-# LINUX_BUILD=--branch 5.14-config --single-branch --depth 1 
-# KERN_VER=$(KERN_REL)$(KERN_EXTRAVERSION)+
-# CONFIG=$(HOME)/linuxConfigs/5.14/USE_ME/symbiote_config
+5.14.0-kElevate: FEDORA_RELEASE=35
+5.14.0-kElevate: KERN_REL=5.14.0
+5.14.0-kElevate: KERN_EXTRAVERSION=-kElevate
+5.14.0-kElevate: LINUX_BUILD=--branch 5.14-config --single-branch --depth 1 
+5.14.0-kElevate: KERN_VER=$(KERN_REL)$(KERN_EXTRAVERSION)+
+5.14.0-kElevate: CONFIG=$(HOME)/linuxConfigs/5.14/USE_ME/symbiote_config
 
-# Baseline 5.14 kernel. Tested up & not including boot.
-# FEDORA_RELEASE=35
-# KERN_REL=5.14.0
-# KERN_EXTRAVERSION=
-# LINUX_BUILD=--branch 5.14-config --single-branch --depth 1 
-# KERN_VER=$(KERN_REL)$(KERN_EXTRAVERSION)+
-# CONFIG=$(HOME)/linuxConfigs/5.14/USE_ME/symbiote_config_off
+5.14.0-kElevate: master
 
 # Note, I think the + is appended to the kernel if 1) there are uncomitted changes in the 
 # git repo where it was built, or if it was built on a non-tagged commit.
 # I'm using the convention here that there will only be an extraversion if we're building a
 # kelevate kernel. Otherwise assuming it's a tagged baseline kernel.
 
-# This doesn't really work 
-# KERN_VER=$(KERN_REL)$(KERN_EXTRAVERSION)#$(if $(KERN_EXTRAVERSION),+,)
-
+# ========================
 # Common variables
-
+# ========================
 CONT=linux_builder$(FEDORA_RELEASE)
 RUN_IN_CONT=sudo docker exec $(CONT)
-
-SERVICE_NAME := docker
 
 HOME=/root
 LINUX_PATH=$(HOME)/linux
 NUM_CPUS=$(shell nproc)
-
-boldprint = @printf '\e[1m%s\e[0m\n' $1
-
-help:
-	@$(MAKE) help_grubby
-	@$(MAKE) help_linux
-	@$(MAKE) help_docker
-
-master:
-	$(MAKE) disable_sudo_pw_checking
-	$(MAKE) docker_setup_and_start
-	$(MAKE) l_all
-	$(MAKE) grubby_set_kele_default_and_reboot
-	$(MAKE) enable_sudo_pw_checking
-
-no_reboot:
-	$(MAKE) disable_sudo_pw_checking
-	$(MAKE) docker_setup_and_start
-	$(MAKE) l_all
-
 
 install_prereqs:
 	sudo dnf install -y gcc
@@ -89,21 +98,13 @@ disable_sudo_pw_checking:
 enable_sudo_pw_checking:
 	sudo sed -i.bak '/kele ALL=(ALL) NOPASSWD:ALL/d' /etc/sudoers
 
-# ====================================================
-# Jupyter
-# ====================================================
-
-# sudo dnf install python3-notebook mathjax sscg
-# pip3 install ipykernel
-# sudo dnf install python3-seaborn python3-lxml python3-basemap python3-scikit-image python3-scikit-learn python3-sympy python3-dask+dataframe python3-nltk
-# python3 -m ipykernel install --user --name=sym
-# jupyter notebook
-# Put url into Notebook: Select Notebook kernel
-
 
 # ====================================================
 # Docker
 # ====================================================
+
+# [root@fedora linux]# git config remote.origin.fetch "+refs/heads/*:refs/remotes/origin/*"
+# [root@fedora linux]# git fetch --unshallow
 
 CONTAINER_PACKAGES=fedpkg fedora-packager rpmdevtools ncurses-devel pesign grubby openssl-devel bc \
 					openssl htop the_silver_searcher redis psmisc ncurses-devel flex bison \
@@ -141,6 +142,7 @@ docker_attach:
 docker_rm:
 	sudo docker rm $(CONT)
 
+SERVICE_NAME := docker
 check-start-service:
 	@STATUS=$$(systemctl is-active $(SERVICE_NAME)); \
 	if [ "$$STATUS" != "active" ]; then \
@@ -165,14 +167,7 @@ add_to_docker_group:
 		echo "User $${USER} is already in the docker group."; \
 	fi
 
-docker_setup_and_start:
-	$(MAKE) install_docker
-	$(MAKE) docker_start_service
-	$(MAKE) docker_enable_service
-	$(MAKE) add_to_docker_group
-	$(MAKE) docker_run
-	$(MAKE) docker_install_git_make
-	$(MAKE) docker_install_dev_packages
+docker_setup_and_start: install_docker docker_start_service docker_enable_service add_to_docker_group docker_run docker_install_git_make docker_install_dev_packages
 
 # ====================================================
 # Linux
@@ -195,13 +190,13 @@ docker_prepare_linux_build:
 l_mrproper:
 	$(RUN_IN_CONT) $(MAKE) -C $(LINUX_PATH) mrproper
 
-# l_config:
-# 	$(RUN_IN_CONT) cp $(CONFIG) $(LINUX_PATH)/.config
-# 	$(RUN_IN_CONT) $(MAKE) -C $(LINUX_PATH) olddefconfig
+l_config:
+	$(RUN_IN_CONT) cp $(CONFIG) $(LINUX_PATH)/.config
+	$(RUN_IN_CONT) $(MAKE) -C $(LINUX_PATH) olddefconfig
 
 # XXX we're using defconfig for now for a fast build.
-l_config:
-	$(RUN_IN_CONT) $(MAKE) -C $(LINUX_PATH) defconfig
+# l_config:
+# 	$(RUN_IN_CONT) $(MAKE) -C $(LINUX_PATH) defconfig
 
 l_build:
 	$(RUN_IN_CONT) $(MAKE) -C $(LINUX_PATH) EXTRAVERSION='$(KERN_EXTRAVERSION)' -j$(NUM_CPUS)
@@ -214,9 +209,7 @@ l_ins_mods:
 l_ins_kern:
 	$(RUN_IN_CONT) $(MAKE) -C $(LINUX_PATH) install
 
-l_ins:
-	$(MAKE) l_ins_mods
-	$(MAKE) l_ins_kern
+l_ins: l_ins_mods l_ins_kern
 
 l_cp_src:
 	sudo docker cp $(CONT):$(LINUX_PATH) .
@@ -245,25 +238,13 @@ l_sl:
 # This is good for a quick rebuild of the kernel.
 # You don't need to rebuild modules.
 # Trigger sudo early so we don't have to wait for the build.
-l_update_kern:
-	$(MAKE) l_build
-	$(MAKE) l_ins_kern
-	$(MAKE) l_cp_kern
-	$(MAKE) l_cp_sys_map
+l_update_kern: l_build l_ins_kern l_cp_kern l_cp_sys_map
 
-l_update_kern_and_reboot:
-	$(MAKE) l_update_kern
+l_update_kern_and_reboot: l_update_kern
 	sudo reboot
 
 # Long path that does it all.
-l_all:
-	$(MAKE) docker_prepare_linux_build
-	$(MAKE) l_mrproper
-	$(MAKE) l_config
-	$(MAKE) l_build
-	$(MAKE) l_ins
-	$(MAKE) l_cp
-	$(MAKE) l_initrd
+l_all: docker_prepare_linux_build l_mrproper l_config l_build l_ins l_cp l_initrd
 
 l_cp_vmlinux:
 	docker cp $(CONT):$(LINUX_PATH)/vmlinux .
@@ -307,3 +288,14 @@ grubby_add_arg:
 	sudo grubby --update-kernel=$(kp) --arg=$(arg)
 
 # ====================================================
+
+# ====================================================
+# Jupyter
+# ====================================================
+
+# sudo dnf install python3-notebook mathjax sscg
+# pip3 install ipykernel
+# sudo dnf install python3-seaborn python3-lxml python3-basemap python3-scikit-image python3-scikit-learn python3-sympy python3-dask+dataframe python3-nltk
+# python3 -m ipykernel install --user --name=sym
+# jupyter notebook
+# Put url into Notebook: Select Notebook kernel
