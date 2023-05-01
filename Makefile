@@ -1,14 +1,17 @@
 SHELL := /bin/bash
 .PHONY: help all master install_docker docker_start_service docker_enable_service check-start-service
 
+FEDORA_RELEASE=35
+KERN_REL=5.14.0
+LINUX_BUILD=--branch 5.14-config --single-branch --depth 1 
+
 # Common variables
-CONT=linux_builder35
+CONT=linux_builder$(FEDORA_RELEASE)
 RUN_IN_CONT=sudo docker exec $(CONT)
 
 SERVICE_NAME := docker
 
-KERN_VER=5.14.0-kElevate+
-#CONFIG=/root/Symbi-OS/linuxConfigs/5.14/depricate/golden_config_bnx2_pnp
+KERN_VER=$(KERN_REL)-kElevate+
 
 HOME=/root
 CONFIG=$(HOME)/linuxConfigs/5.14/USE_ME/symbiote_config
@@ -71,10 +74,10 @@ install_docker:
 	sudo dnf install docker-ce docker-ce-cli containerd.io -y
 
 docker_run:
-	sudo docker run --network host --privileged -idt --name linux_builder35 fedora:35
+	sudo docker run --network host --privileged -idt --name $(CONT) fedora:$(FEDORA_RELEASE)
 
 docker_restart:
-	sudo docker restart linux_builder35
+	sudo docker restart $(CONT)
 
 docker_install_dev_packages:
 	$(RUN_IN_CONT) dnf group install "C Development Tools and Libraries" "Development Tools" -y
@@ -93,7 +96,7 @@ docker_install_git_make:
 # $(RUN_IN_CONT) git clone --recurse-submodules git@github.com:Symbi-OS/Symbi-OS.git
 
 docker_attach:
-	sudo docker attach linux_builder35
+	sudo docker attach $(CONT)
 
 check-start-service:
 	@STATUS=$$(systemctl is-active $(SERVICE_NAME)); \
@@ -110,9 +113,20 @@ docker_start_service:
 docker_enable_service:
 	sudo systemctl enable docker
 
+add_to_docker_group:
+	@if ! groups $${USER} | grep -q -w "docker"; then \
+		echo "Adding $${USER} to the docker group..."; \
+		sudo usermod -aG docker $${USER}; \
+		echo "Done! Log out and log back in for the changes to take effect."; \
+	else \
+		echo "User $${USER} is already in the docker group."; \
+	fi
+
 docker_setup_and_start:
 	$(MAKE) install_docker
 	$(MAKE) docker_start_service
+	$(MAKE) docker_enable_service
+	$(MAKE) add_to_docker_group
 	$(MAKE) docker_run
 	$(MAKE) docker_install_git_make
 	$(MAKE) docker_install_dev_packages
@@ -126,8 +140,8 @@ docker_setup_and_start:
 # This is just for building, if you want to develop, you may as well
 # pull the whole Symbi-OS repo. 
 docker_prepare_linux_build:
-	$(RUN_IN_CONT) git clone --branch 5.14-config --single-branch --depth 1 https://github.com/Symbi-OS/linux.git $(HOME)/linux
-	$(RUN_IN_CONT) git clone https://github.com/Symbi-OS/linuxConfigs.git  $(HOME)/linuxConfigs
+	$(RUN_IN_CONT) git clone $(LINUX_BUILD) https://github.com/Symbi-OS/linux.git $(HOME)/linux
+	$(RUN_IN_CONT) git clone https://github.com/Symbi-OS/linuxConfigs.git $(HOME)/linuxConfigs
 
 # When in doubt, blow it all away and start over.
 l_mrproper:
@@ -252,8 +266,8 @@ grubby_cp_default:
 	sudo grubby --add-kernel=$(kp) --copy-default --title="sym_test" --initrd=$(init)
 
 grubby_set_kele_default_and_reboot:
-	sudo grubby --add-kernel=vmlinuz-5.14.0-kElevate+ --copy-default --title="kele" --initrd=initramfs-5.14.0-kElevate+.img --args="nosmep nosmap nokaslr nopti"
-	sudo grubby --set-default=vmlinuz-5.14.0-kElevate+
+	sudo grubby --add-kernel=vmlinuz-$(KERN_VER) --copy-default --title="kele" --initrd=initramfs-$(KERN_VER).img --args="nosmep nosmap nokaslr nopti"
+	sudo grubby --set-default=vmlinuz-$(KERN_VER)
 	sudo reboot
 
 grubby_get_default:
