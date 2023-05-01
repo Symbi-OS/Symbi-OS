@@ -30,6 +30,10 @@ master_clean:
 	- sudo rm -rf /lib/modules/6.3.0-kElevate
 	- sudo rm /boot/*5.14.0*
 	- sudo rm /boot/*6.3.0*
+	- $(MAKE) grubby_rm_kern kp=/boot/vmlinuz-5.14.0+
+	- $(MAKE) grubby_rm_kern kp=/boot/vmlinuz-5.14.0-kElevate+
+	- $(MAKE) grubby_rm_kern kp=/boot/vmlinuz-6.3.0
+	- $(MAKE) grubby_rm_kern kp=/boot/vmlinuz-6.3.0-kElevate
 
 # ========================
 # Kernel targets
