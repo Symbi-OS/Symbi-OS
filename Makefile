@@ -10,6 +10,7 @@ boldprint = @printf '\e[1m%s\e[0m\n' $1
 
 help_all:
 	$(call boldprint, '===== Kernels to Build =====')
+	@printf '\tall_master - Build all kernels\n'
 	@printf '\t5.14.0\t\t\t- 5.14.0 kernel\n'
 	@printf '\t5.14.0-kelevate\t\t\t- 5.14.0 kernel with kelevate\n'
 	@printf '\t6.3.0\t\t\t- 6.3.0 kernel\n'
@@ -18,8 +19,17 @@ help_all:
 # ========================
 # Master target
 # ========================
-master: disable_sudo_pw_checking docker_setup_and_start l_all grubby_set_kele_default_and_reboot enable_sudo_pw_checking
-# no_reboot: disable_sudo_pw_checking docker_setup_and_start l_all
+all_master: 5.14.0 5.14.0-kElevate 6.3.0
+
+master: disable_sudo_pw_checking docker_setup_and_start l_all grubby_add_kern enable_sudo_pw_checking
+
+master_clean:
+	- sudo rm -rf /lib/modules/5.14.0+
+	- sudo rm -rf /lib/modules/5.14.0-kElevate+
+	- sudo rm -rf /lib/modules/6.3.0
+	- sudo rm -rf /lib/modules/6.3.0-kElevate
+	- sudo rm /boot/*5.14.0*
+	- sudo rm /boot/*6.3.0*
 
 # ========================
 # Kernel targets
@@ -33,6 +43,7 @@ master: disable_sudo_pw_checking docker_setup_and_start l_all grubby_set_kele_de
 
 6.3.0: master
 
+# Not yet implemented in the kernel
 6.3.0-kElevate: FEDORA_RELEASE=38
 6.3.0-kElevate: KERN_REL=6.3.0
 6.3.0-kElevate: KERN_EXTRAVERSION=-kElevate
@@ -98,7 +109,6 @@ disable_sudo_pw_checking:
 enable_sudo_pw_checking:
 	sudo sed -i.bak '/kele ALL=(ALL) NOPASSWD:ALL/d' /etc/sudoers
 
-
 # ====================================================
 # Docker
 # ====================================================
@@ -124,7 +134,12 @@ install_docker:
 	sudo dnf install docker-ce docker-ce-cli containerd.io -y
 
 docker_run:
-	sudo docker run --network host --privileged -idt --name $(CONT) fedora:$(FEDORA_RELEASE)
+	@if [ -z "$$(sudo docker ps -a -q -f name=$(CONT))" ]; then \
+		sudo docker run --network host --privileged -idt --name $(CONT) fedora:$(FEDORA_RELEASE); \
+	else \
+		echo "Container $(CONT) already exists."; \
+		sudo docker restart $(CONT); \
+	fi
 
 docker_restart:
 	sudo docker restart $(CONT)
@@ -180,11 +195,19 @@ help_linux:
 	@printf '\tl_cp_vmlinux\t\t\t- Copy vmlinux from the container to the host\n'
 	@printf '\n'
 
-# This is just for building, if you want to develop, you may as well
-# pull the whole Symbi-OS repo. 
+# This is a bit of a mess, we're just trying to pull the repo if it doesn't alreay exist.
+# Maybe easier to just ignore the error?
 docker_prepare_linux_build:
-	$(RUN_IN_CONT) git clone $(LINUX_BUILD) https://github.com/Symbi-OS/linux.git $(HOME)/linux
-	$(RUN_IN_CONT) git clone https://github.com/Symbi-OS/linuxConfigs.git $(HOME)/linuxConfigs
+	$(RUN_IN_CONT) sh -c 'if [ ! -d "$(HOME)/linux" ]; then \
+		git clone $(LINUX_BUILD) https://github.com/Symbi-OS/linux.git $(HOME)/linux; \
+	else \
+		echo "$(HOME)/linux directory already exists."; \
+	fi'
+	$(RUN_IN_CONT) sh -c 'if [ ! -d "$(HOME)/linuxConfigs" ]; then \
+		git clone https://github.com/Symbi-OS/linuxConfigs.git $(HOME)/linuxConfigs; \
+	else \
+		echo "$(HOME)/linuxConfigs directory already exists."; \
+	fi'
 
 # When in doubt, blow it all away and start over.
 l_mrproper:
@@ -272,6 +295,9 @@ grubby_rm_kern:
 
 grubby_cp_default:
 	sudo grubby --add-kernel=$(kp) --copy-default --title="sym_test" --initrd=$(init)
+
+grubby_add_kern:
+	sudo grubby --add-kernel=vmlinuz-$(KERN_VER) --copy-default --title="$(KERN_VER)" --initrd=initramfs-$(KERN_VER).img --args="nosmep nosmap nokaslr nopti"
 
 grubby_set_kele_default_and_reboot:
 	sudo grubby --add-kernel=vmlinuz-$(KERN_VER) --copy-default --title="$(KERN_VER)" --initrd=initramfs-$(KERN_VER).img --args="nosmep nosmap nokaslr nopti"
