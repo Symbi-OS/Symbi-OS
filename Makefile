@@ -1,5 +1,5 @@
 SHELL := /bin/bash
-.PHONY: help all master install_docker docker_start_service docker_enable_service check-start-service
+.PHONY: help all master armport install_docker docker_start_service docker_enable_service check-start-service
 
 # ========================
 # Help targets
@@ -88,10 +88,11 @@ armport: KERN_REL=5.14.0
 armport: KERN_EXTRAVERSION=-kElevate
 armport: LINUX_BUILD=--branch aarch64 --single-branch --depth 1
 armport: KERN_VER=$(KERN_REL)$(KERN_EXTRAVERSION)+
-armport: CONFIG=$(HOME)/linuxConfigs/5.14/USE_ME/ARLO_DEFCONFIG_PLUS
+armport: CONFIG=$(HOME)/linuxConfigs/5.14/USE_ME/aarch64/ARLO_DEFCONFIG_PLUS
 armport: VICTIM=root@192.168.122.161
 
 armport: disable_sudo_pw_checking l_config l_build l_ins l_cp l_initrd enable_sudo_pw_checking
+#armport: disable_sudo_pw_checking l_mrproper l_config l_build l_ins l_cp l_initrd enable_sudo_pw_checking
 #armport: disable_sudo_pw_checking l_mrproper l_config l_build l_ins l_cp l_initrd grubby_add_kern_arm enable_sudo_pw_checking
 
 # ========================
