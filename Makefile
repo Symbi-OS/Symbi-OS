@@ -83,6 +83,17 @@ master_clean:
 # I'm using the convention here that there will only be an extraversion if we're building a
 # kelevate kernel. Otherwise assuming it's a tagged baseline kernel.
 
+armport: FEDORA_RELEASE=35
+armport: KERN_REL=5.14.0
+armport: KERN_EXTRAVERSION=-kElevate
+armport: LINUX_BUILD=--branch aarch64 --single-branch --depth 1
+armport: KERN_VER=$(KERN_REL)$(KERN_EXTRAVERSION)+
+armport: CONFIG=$(HOME)/linuxConfigs/5.14/USE_ME/ARLO_DEFCONFIG_PLUS
+armport: VICTIM=root@192.168.122.161
+
+armport: disable_sudo_pw_checking l_config l_build l_ins l_cp l_initrd enable_sudo_pw_checking
+#armport: disable_sudo_pw_checking l_mrproper l_config l_build l_ins l_cp l_initrd grubby_add_kern_arm enable_sudo_pw_checking
+
 # ========================
 # Common variables
 # ========================
@@ -227,6 +238,7 @@ l_config:
 
 l_build:
 	$(RUN_IN_CONT) $(MAKE) -C $(LINUX_PATH) EXTRAVERSION='$(KERN_EXTRAVERSION)' -j$(NUM_CPUS)
+	$(RUN_IN_CONT) $(MAKE) -C $(LINUX_PATH) EXTRAVERSION='$(KERN_EXTRAVERSION)' -j$(NUM_CPUS) modules
 
 l_ins_mods:
 	$(RUN_IN_CONT) $(MAKE) -C $(LINUX_PATH) modules_install -j$(NUM_CPUS)
@@ -249,6 +261,12 @@ l_cp:
 	sudo docker cp $(CONT):/lib/modules/$(KERN_VER) /lib/modules/
 	sudo docker cp $(CONT):/boot/vmlinuz-$(KERN_VER) /boot/
 	sudo docker cp $(CONT):/boot/System.map-$(KERN_VER) /boot/
+
+l_scp:
+	sudo rsync --progress -av -e ssh /lib/modules/$(KERN_VER) $(VICTIM):/lib/modules/
+	sudo scp /boot/vmlinuz-$(KERN_VER) $(VICTIM):/boot/
+	sudo scp /boot/System.map-$(KERN_VER) $(VICTIM):/boot/
+	sudo scp /boot/initramfs-$(KERN_VER).img $(VICTIM):/boot/
 
 # I've been seeing the following error when I run this...
 # ERROR: src/skipcpio/skipcpio.c:191:main(): fwrite
@@ -302,6 +320,9 @@ grubby_cp_default:
 
 grubby_add_kern:
 	sudo grubby --add-kernel=vmlinuz-$(KERN_VER) --copy-default --title="$(KERN_VER)" --initrd=initramfs-$(KERN_VER).img --args="nosmep nosmap nokaslr nopti"
+
+grubby_add_kern_arm:
+	sudo grubby --add-kernel=vmlinuz-$(KERN_VER) --copy-default --title="$(KERN_VER)" --initrd=initramfs-$(KERN_VER).img
 
 grubby_set_kele_default_and_reboot:
 	sudo grubby --add-kernel=vmlinuz-$(KERN_VER) --copy-default --title="$(KERN_VER)" --initrd=initramfs-$(KERN_VER).img --args="nosmep nosmap nokaslr nopti"
