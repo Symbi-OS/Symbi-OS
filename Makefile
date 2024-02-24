@@ -40,6 +40,13 @@ build_core_repos:
 	$(MAKE) -C Symlib/
 	$(MAKE) -C Tools/
 
+clone_and_build_symbiote_kernel:
+	$(MAKE) clone_symbiote_linux
+	$(MAKE) copy_linux_config
+	$(MAKE) compile_symbiote_kernel
+	$(MAKE) grubby_set_default_kernel
+	$(MAKE) grubby_set_kernel_cmdline
+
 setup_first_time_environment:
 	sudo echo "---- Building Symbiote Ecosystem ----"
 
@@ -48,9 +55,5 @@ setup_first_time_environment:
 	$(MAKE) clone_core_repos
 	$(MAKE) build_core_repos
 
-	$(MAKE) clone_symbiote_linux
-	$(MAKE) copy_linux_config
-	$(MAKE) compile_symbiote_kernel
-	$(MAKE) grubby_set_default_kernel
-	$(MAKE) grubby_set_kernel_cmdline
+	$(MAKE) clone_and_build_symbiote_kernel
 
