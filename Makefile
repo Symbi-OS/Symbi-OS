@@ -31,10 +31,10 @@ compile_symbiote_kernel:
 	sudo make -C linux/ install
 
 grubby_set_kernel_cmdline:
-	sudo grubby --update-kernel=/boot/vmlinuz-5.14.0symbiote+ --args="nosmap nosmep nokaslr mitigations=off"
+	sudo grubby --update-kernel=/boot/vmlinuz-5.14.0+ --args="nosmap nosmep nokaslr mitigations=off"
 
 grubby_set_default_kernel:
-	sudo grubby --set-default="/boot/vmlinuz-5.14.0symbiote+"
+	sudo grubby --set-default="/boot/vmlinuz-5.14.0+"
 
 build_core_repos:
 	$(MAKE) -C Symlib/
