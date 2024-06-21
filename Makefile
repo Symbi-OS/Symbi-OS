@@ -42,10 +42,12 @@ master_clean:
 6.3.0: KERN_REL=6.3.0
 6.3.0: KERN_EXTRAVERSION=
 6.3.0: LINUX_BUILD=--branch 6.3 --single-branch --depth 1 
-6.3.0: KERN_VER=$(KERN_REL)$(KERN_EXTRAVERSION) # No "+" because it's on a tagged commit
-6.3.0: CONFIG=$(HOME)/linuxConfigs/5.14/USE_ME/symbiote_config_off
+6.3.0: KERN_VER=$(KERN_REL)$(KERN_EXTRAVERSION)# No "+" because it's on a tagged commit
+# 6.3.0: CONFIG=$(HOME)/linuxConfigs/6.3/aarch64/config-6.2.9-300.fc38.aarch64
+6.3.0: CONFIG=$(HOME)/linuxConfigs/5.14/USE_ME/aarch64/ARLO_DEFCONFIG_PLUS
 
-6.3.0: master
+6.3.0: l_config l_build l_ins l_cp l_initrd
+#6.3.0: master
 
 # Not yet implemented in the kernel
 6.3.0-kElevate: FEDORA_RELEASE=38
@@ -91,9 +93,9 @@ armport: KERN_VER=$(KERN_REL)$(KERN_EXTRAVERSION)+
 armport: CONFIG=$(HOME)/linuxConfigs/5.14/USE_ME/aarch64/ARLO_DEFCONFIG_PLUS
 armport: VICTIM=root@192.168.122.161
 
-armport: disable_sudo_pw_checking l_config l_build l_ins l_cp l_initrd enable_sudo_pw_checking
-#armport: disable_sudo_pw_checking l_mrproper l_config l_build l_ins l_cp l_initrd enable_sudo_pw_checking
-#armport: disable_sudo_pw_checking l_mrproper l_config l_build l_ins l_cp l_initrd grubby_add_kern_arm enable_sudo_pw_checking
+armport: l_config l_build l_ins l_cp l_initrd
+#armport: l_mrproper l_config l_build l_ins l_cp l_initrd
+#armport: l_mrproper l_config l_build l_ins l_cp l_initrd grubby_add_kern_arm 
 
 # ========================
 # Common variables
