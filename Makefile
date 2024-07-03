@@ -38,6 +38,28 @@ master_clean:
 # ========================
 # Kernel targets
 # ========================
+6.9.0-kElevate: FEDORA_RELEASE=40
+6.9.0-kElevate: KERN_REL=6.9.0
+6.9.0-kElevate: KERN_EXTRAVERSION=-kElevate
+6.9.0-kElevate: LINUX_BUILD=--branch dynam_priv --single-branch --depth 1
+6.9.0-kElevate: KERN_VER=$(KERN_REL)$(KERN_EXTRAVERSION)+
+6.9.0-kElevate: CONFIG=$(HOME)/linuxConfigs/5.14/USE_ME/aarch64/ARLO_DEFCONFIG_PLUS
+
+6.9.0-kElevate: grubby_add_kern
+# 6.9.0-kElevate: master
+
+6.9.0: FEDORA_RELEASE=40
+6.9.0: KERN_REL=6.9.0
+6.9.0: KERN_EXTRAVERSION=
+6.9.0: LINUX_BUILD=--branch v6.9 --single-branch --depth 1
+6.9.0: KERN_VER=$(KERN_REL)$(KERN_EXTRAVERSION)# No "+" because it's on a tagged commit
+# This knowingly has a CONFIG_SYMBIOTE in it, but the vanilla kernel doesn't have that.
+# TODO: Create a version of the config that doesn't have CONFIG_SYMBIOTE in it.
+6.9.0: CONFIG=$(HOME)/linuxConfigs/5.14/USE_ME/aarch64/ARLO_DEFCONFIG_PLUS
+
+6.9.0: grubby_add_kern
+#6.9.0: master
+
 6.3.0: FEDORA_RELEASE=38
 6.3.0: KERN_REL=6.3.0
 6.3.0: KERN_EXTRAVERSION=
@@ -57,7 +79,8 @@ master_clean:
 6.3.0-kElevate: KERN_VER=$(KERN_REL)$(KERN_EXTRAVERSION)+
 6.3.0-kElevate: CONFIG=$(HOME)/linuxConfigs/5.14/USE_ME/symbiote_config
 
-6.3.0-kElevate: master
+#6.3.0-kElevate: master
+6.3.0-kElevate: grubby_add_kern
 
 # Baseline 5.14 kernel. Tested up & not including boot.
 5.14.0: FEDORA_RELEASE=35
@@ -215,6 +238,7 @@ help_linux:
 
 # This is a bit of a mess, we're just trying to pull the repo if it doesn't alreay exist.
 # Maybe easier to just ignore the error?
+# TODO: force the re-cloning of the repo in case it has changed.
 docker_prepare_linux_build:
 	$(RUN_IN_CONT) sh -c 'if [ ! -d "$(HOME)/linux" ]; then \
 		git clone $(LINUX_BUILD) https://github.com/Symbi-OS/linux.git $(HOME)/linux; \
