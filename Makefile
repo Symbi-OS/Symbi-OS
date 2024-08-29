@@ -94,3 +94,11 @@ setup_first_time_environment:
 
 	$(MAKE) clone_and_build_symbiote_kernel
 
+# ============ Development Workflows ============ #
+
+dev_recompile_kernel:
+	make -C linux/ bzImage -j$$(($$(nproc) - 2))
+	sudo make -C linux/ install
+	$(MAKE) grubby_set_default_kernel
+	$(MAKE) grubby_set_kernel_cmdline
+
