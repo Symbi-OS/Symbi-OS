@@ -45,7 +45,8 @@ master_clean:
 6.9.0-kElevate: KERN_VER=$(KERN_REL)$(KERN_EXTRAVERSION)+
 6.9.0-kElevate: CONFIG=$(HOME)/linuxConfigs/5.14/USE_ME/aarch64/ARLO_DEFCONFIG_PLUS
 
-6.9.0-kElevate: grubby_add_kern
+# 6.9.0-kElevate: l_build l_ins l_cp l_initrd
+6.9.0-kElevate: l_config l_build l_ins l_cp l_initrd
 # 6.9.0-kElevate: master
 
 6.9.0: FEDORA_RELEASE=40
